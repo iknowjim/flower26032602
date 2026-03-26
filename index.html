@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI花卉病虫害识别 - 测试版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .upload-area:hover { background-color: #f0fdf4; border-color: #10b981; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-emerald-100 min-h-screen py-8">
+    <div class="max-w-md mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden">
+        <div class="bg-emerald-600 text-white p-6 text-center">
+            <h1 class="text-2xl font-bold">🌺 AI花卉病虫害识别</h1>
+            <p class="text-emerald-100 mt-1">月季 · 铁线莲 等专用</p>
+        </div>
+
+        <div class="p-6">
+            <div id="uploadArea" class="upload-area border-2 border-dashed border-emerald-300 rounded-3xl p-10 text-center cursor-pointer bg-white">
+                <input type="file" id="fileInput" accept="image/*" capture="camera" class="hidden">
+                <div class="mx-auto w-20 h-20 bg-emerald-100 rounded-3xl flex items-center justify-center text-5xl mb-4">📸</div>
+                <p class="font-medium text-emerald-700">点击上传花卉照片</p>
+                <p class="text-sm text-gray-500">叶片或病斑要清晰</p>
+            </div>
+
+            <div id="previewContainer" class="hidden mt-6">
+                <img id="previewImage" class="w-full rounded-3xl shadow-md" alt="预览">
+                <button onclick="clearImage()" class="mt-4 text-red-500 text-sm">重新上传</button>
+            </div>
+
+            <button onclick="recognizeDisease()" id="recognizeBtn"
+                    class="w-full mt-8 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-4 rounded-3xl shadow">
+                🚀 开始识别病虫害
+            </button>
+
+            <div id="loading" class="hidden mt-8 text-center text-emerald-600">AI正在诊断中...</div>
+            <div id="result" class="hidden mt-8 bg-emerald-50 rounded-3xl p-6"></div>
+        </div>
+    </div>
+
+    <script>
+        const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+
+        async function recognizeDisease() {
+            const file = document.getElementById('fileInput').files[0];
+            if (!file) return alert('请先上传照片');
+
+            document.getElementById('recognizeBtn').classList.add('hidden');
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('result').classList.add('hidden');
+
+            try {
+                const form = new FormData();
+                form.append('images', file);
+
+                const targetUrl = `https://my-api.plantnet.org/v2/diseases/identify?api-key=2b10imYwpIAGLH8BX6esVUVBee&include-related-images=true`;
+                const proxyUrl = CORS_PROXY + encodeURIComponent(targetUrl);
+
+                const response = await fetch(proxyUrl, { method: 'POST', body: form });
+
+                if (!response.ok) throw new Error('请求失败');
+
+                const data = await response.json();
+                renderResult(data);
+
+            } catch (error) {
+                document.getElementById('result').innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-2xl">识别失败：${error.message}<br><small>公共代理可能不稳定，可换Next.js版本</small></div>`;
+                document.getElementById('result').classList.remove('hidden');
+            } finally {
+                document.getElementById('recognizeBtn').classList.remove('hidden');
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+
+        function renderResult(data) {
+            const div = document.getElementById('result');
+            let html = `<h3 class="font-bold text-emerald-700 mb-4">🔍 识别结果</h3>`;
+            if (data.results && data.results.length > 0) {
+                data.results.slice(0, 4).forEach(item => {
+                    const score = (item.score * 100).toFixed(1);
+                    const name = item.species ? item.species.scientificName : '未知病害';
+                    html += `<div class="bg-white p-4 rounded-2xl mb-3"><div class="flex justify-between"><span>${name}</span><span class="text-emerald-600">${score}%</span></div></div>`;
+                });
+            } else {
+                html += `<p>未检测到明显病虫害</p>`;
+            }
+            div.innerHTML = html;
+            div.classList.remove('hidden');
+        }
+
+        // 初始化
+        document.getElementById('uploadArea').addEventListener('click', () => document.getElementById('fileInput').click());
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = ev => {
+                    document.getElementById('previewImage').src = ev.target.result;
+                    document.getElementById('previewContainer').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function clearImage() {
+            document.getElementById('previewContainer').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
